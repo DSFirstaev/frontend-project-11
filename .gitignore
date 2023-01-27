@@ -1,7 +1,5 @@
 node_modules
-/dmitry_f.code-workspace
+*.code-workspace
 /.vscode
-/node_modules/
 *.log
 dist
-assets

@@ -13,16 +13,26 @@ const config = {
   entry: './src/index.js',
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'index.bundle.js',
+    filename: 'main.js',
   },
+
   devServer: {
     open: true,
     host: 'localhost',
+    compress: true,
+    port: 9000,
   },
+
+  // Настройки для watch
+  watchOptions: {
+    // Директории, которые watch будет игнорировать
+    ignored: ['node_modules'],
+  },
+
   plugins: [
     new HtmlWebpackPlugin({
       title: 'webpack Boilerplate',
-      template: path.resolve(__dirname, './src/template.html'), // шаблон
+      template: path.resolve(__dirname, 'template.html'), // шаблон
       filename: 'index.html', // название выходного файла
     }),
 
