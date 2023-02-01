@@ -1,53 +1,20 @@
 // Generated using webpack-cli https://github.com/webpack/webpack-cli
 
-import path from 'path';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const isProduction = process.env.NODE_ENV === 'production';
-
-const config = {
-  entry: './src/index.js',
-  output: {
-    path: path.resolve(__dirname, 'dist'),
-    filename: 'main.js',
-  },
-
-  devServer: {
-    open: true,
-    host: 'localhost',
-    compress: true,
-    port: 9000,
-  },
-
-  // Настройки для watch
-  watchOptions: {
-    // Директории, которые watch будет игнорировать
-    ignored: ['node_modules'],
-  },
-
-  plugins: [
-    new HtmlWebpackPlugin({
-      title: 'webpack Boilerplate',
-      template: path.resolve(__dirname, 'template.html'), // шаблон
-      filename: 'index.html', // название выходного файла
-    }),
-
-    // Add your plugins here
-    // Learn more about plugins from https://webpack.js.org/configuration/plugins/
-  ],
+export default {
+  mode: process.env.NODE_ENV || 'development',
   module: {
     rules: [
       {
-        test: /\.(js|jsx)$/i,
-        loader: 'babel-loader',
-      },
-      {
-        test: /\.(eot|svg|ttf|woff|woff2|png|jpg|gif)$/i,
-        type: 'asset',
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/preset-env'],
+          },
+        },
       },
       { test: /\.css$/, use: ['style-loader', 'css-loader', 'postcss-loader'] },
       {
@@ -62,17 +29,20 @@ const config = {
         test: /\.(ttf|eot|svg)(\?[\s\S]+)?$/,
         use: 'file-loader',
       },
-      // Add your rules for custom modules here
-      // Learn more about loaders from https://webpack.js.org/loaders/
     ],
   },
-};
 
-export default () => {
-  if (isProduction) {
-    config.mode = 'production';
-  } else {
-    config.mode = 'development';
-  }
-  return config;
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: 'template.html',
+    }),
+  ],
+  output: {
+    clean: true,
+  },
+
+  devServer: {
+    open: true,
+    host: 'localhost',
+  },
 };

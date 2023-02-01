@@ -4,19 +4,15 @@ import render from './view.js';
 
 const validation = (url, state) => {
   const stateForm = state.form;
-  const schema = yup.object().shape({
-    link: yup.string().url().min(1).required()
-      .mixed()
-      .notOneOf(state.urlRss),
-  });
-  schema.validate(url, state)
+  const schema = yup.string().url().required().notOneOf([state.repeatUrls], `"${url}" is not allowed`);
+  schema.validate(url)
     .then(() => {
       stateForm.valid = true;
-      url.push(state.urlRss);
+      state.repeatUrls.push(url);
     })
-    .catch((err) => {
+    .catch(() => {
       stateForm.valid = false;
-      stateForm.error = err.name; // => 'ValidationError'
+      stateForm.error = 'Ссылка должна быть валидным URL';
     });
 };
 
@@ -24,24 +20,40 @@ export default () => {
   const container = {
     form: document.querySelector('form'),
     input: document.querySelector('input'),
+    feedback: document.querySelector('.feedback'),
   };
 
   // model
   const initialState = {
-    urlRss: [],
+    repeatUrls: [],
     form: {
       valid: true,
-      link: '',
       error: '',
     },
   };
 
-  const watchedState = onChange(initialState, render(initialState, container));
+  const watchedState = onChange(initialState, (path) => {
+    switch (path) {
+      case 'form.valid':
+        render(watchedState, container);
+        break;
+      case 'repeatUrls':
+        render(watchedState, container);
+        break;
+      case 'form.error':
+        render(watchedState, container);
+        break;
+      default:
+        throw new Error(`${path} is a wrong path`);
+    }
+  });
+
   // control
   container.form.addEventListener('submit', (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    validation(formData, watchedState);
+    const repeatUrls = formData.get('url');
+    validation(repeatUrls, watchedState);
     container.form.reset();
     container.input.focus();
   });
