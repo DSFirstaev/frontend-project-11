@@ -4,15 +4,16 @@ import render from './view.js';
 
 const validation = (url, state) => {
   const stateForm = state.form;
-  const schema = yup.string().url().required().notOneOf([state.repeatUrls], `"${url}" is not allowed`);
+  const schema = yup.string().url('Ссылка должна быть валидным URL').required().notOneOf([state.repeatUrls], 'RSS уже загружен');
   schema.validate(url)
     .then(() => {
       stateForm.valid = true;
+      stateForm.feedback = 'RSS успешно загружен';
       state.repeatUrls.push(url);
     })
-    .catch(() => {
+    .catch((err) => {
       stateForm.valid = false;
-      stateForm.error = 'Ссылка должна быть валидным URL';
+      stateForm.feedback = err;
     });
 };
 
@@ -28,25 +29,11 @@ export default () => {
     repeatUrls: [],
     form: {
       valid: true,
-      error: '',
+      feedback: '',
     },
   };
 
-  const watchedState = onChange(initialState, (path) => {
-    switch (path) {
-      case 'form.valid':
-        render(watchedState, container);
-        break;
-      case 'repeatUrls':
-        render(watchedState, container);
-        break;
-      case 'form.error':
-        render(watchedState, container);
-        break;
-      default:
-        throw new Error(`${path} is a wrong path`);
-    }
-  });
+  const watchedState = onChange(initialState, render(initialState, container));
 
   // control
   container.form.addEventListener('submit', (e) => {
