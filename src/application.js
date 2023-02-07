@@ -14,7 +14,7 @@ const validation = (url, state) => {
     })
     .catch((err) => {
       stateForm.valid = false;
-      stateForm.error = err.errors.join();
+      stateForm.error = err.message;
     });
 };
 
@@ -54,7 +54,7 @@ export default () => {
   i18n.init({
     lng: defaultLanguage,
     debug: true,
-    resources,
+    resources: { ru: resources },
   })
     .then(() => {
       yup.setLocale({
