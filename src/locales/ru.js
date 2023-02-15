@@ -1,7 +1,11 @@
 export default {
   translation: {
     success: 'RSS успешно загружен',
-    repeatUrl: 'RSS уже загружен',
-    invalidUrl: 'Ссылка должна быть валидным URL',
+    errors: {
+      repeatUrl: 'RSS уже загружен',
+      invalidUrl: 'Ссылка должна быть валидным URL',
+      parserError: 'Ошибка парсера',
+      networkError: 'Проблемы с сетью',
+    },
   },
 };
