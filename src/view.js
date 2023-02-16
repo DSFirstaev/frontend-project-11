@@ -1,3 +1,11 @@
+const disableButton = (state, container) => {
+  if (state.status === 'loading') {
+    container.submitButton.classList.add('disabled');
+  } else {
+    container.submitButton.classList.remove('disabled');
+  }
+};
+
 const renderValid = (container, i18n) => {
   const inputField = container.input;
   const inputFeedback = container.feedback;
@@ -74,25 +82,26 @@ const renderPosts = (state, container) => {
   ulPosts.classList.add('list-group', 'border-0', 'rounded-0');
   cardBorder.append(ulPosts);
   ulPosts.innerHTML = '';
-  state.posts.forEach((feedsPosts) => {
-    feedsPosts.forEach((post) => {
-      const liPost = document.createElement('li');
-      liPost.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start', 'border-0', 'border-end-0');
-      const anchorPost = document.createElement('a');
-      anchorPost.setAttribute('href', `${post.linkPost}`);
-      anchorPost.classList.add('fw-bold');
-      anchorPost.setAttribute('data-id', `${post.postID}`);
-      anchorPost.setAttribute('target', '_blank');
-      anchorPost.setAttribute('rel', 'noopener noreferrer');
-      anchorPost.textContent = post.titlePost;
-      liPost.append(anchorPost);
-      ulPosts.append(liPost);
-    });
+  state.posts.flat().forEach((post) => {
+    const liPost = document.createElement('li');
+    liPost.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start', 'border-0', 'border-end-0');
+    const anchorPost = document.createElement('a');
+    anchorPost.setAttribute('href', `${post.linkPost}`);
+    anchorPost.classList.add('fw-bold');
+    anchorPost.setAttribute('data-id', `${post.postID}`);
+    anchorPost.setAttribute('target', '_blank');
+    anchorPost.setAttribute('rel', 'noopener noreferrer');
+    anchorPost.textContent = post.titlePost;
+    liPost.append(anchorPost);
+    ulPosts.append(liPost);
   });
 };
 
 export default (state, container, i18n) => (path) => {
   switch (path) {
+    case 'status':
+      disableButton(state, container);
+      break;
     case 'form.valid':
       renderValid(container, i18n);
       break;

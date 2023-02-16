@@ -7,8 +7,6 @@ import parser from './parser.js';
 import render from './view.js';
 import resources from './locales/ru.js';
 
-// http://feeds.feedburner.com/RuWikinewsLatestNews
-
 const fetchingData = (url) => axios
   .get(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`)
   .then((response) => response.data.contents)
@@ -21,7 +19,8 @@ const updatePosts = (state) => {
   const promises = links.map((link) => fetchingData(link)
     .then((response) => {
       const { posts } = parser(response);
-      const newPosts = _.differenceBy(posts, state.posts, 'postTitle');
+      const currentPosts = state.posts;
+      const newPosts = _.differenceBy(posts, currentPosts, 'titlePost');
       if (newPosts.length > 0) {
         state.posts = [...newPosts, ...state.posts];
       }
@@ -43,10 +42,12 @@ const runApp = (i18n) => {
     feedback: document.querySelector('.feedback'),
     postsContainer: document.querySelector('.posts'),
     feedsContainer: document.querySelector('.feeds'),
+    submitButton: document.querySelector('button[type="submit"]'),
   };
 
   // model
   const initialState = {
+    status: 'waiting',
     form: {
       valid: false,
       error: '',
@@ -64,6 +65,7 @@ const runApp = (i18n) => {
   // control
   container.form.addEventListener('submit', (e) => {
     e.preventDefault();
+    watchedState.status = 'loading';
     const formData = new FormData(e.target);
     const url = formData.get('url');
     const parsedUrl = watchedState.feeds.map((feed) => feed.linkFeed);
@@ -78,10 +80,12 @@ const runApp = (i18n) => {
         watchedState.posts.unshift(posts);
         watchedState.feeds.unshift(feed);
         watchedState.form.valid = true;
+        watchedState.status = 'waiting';
       })
       .catch((err) => {
         watchedState.form.valid = false;
         watchedState.form.error = err.message;
+        watchedState.status = 'error!';
       });
     container.form.reset();
     container.input.focus();
