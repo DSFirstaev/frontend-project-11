@@ -14,20 +14,23 @@ const fetchingData = (url) => axios
     throw new Error('networkError');
   });
 
-const updatePosts = (state) => {
-  const links = state.feeds.map((feed) => feed.linkFeed);
+const updatePosts = (watchedState) => {
+  const links = watchedState.feeds.map((feed) => feed.linkFeed);
   const promises = links.map((link) => fetchingData(link)
     .then((response) => {
       const { posts } = parser(response);
-      const currentPosts = state.posts;
+      const currentPosts = onChange.target(watchedState.posts).flat();
       const newPosts = _.differenceBy(posts, currentPosts, 'titlePost');
       if (newPosts.length > 0) {
-        state.posts = [...newPosts, ...state.posts];
+        newPosts.forEach((elem) => {
+          elem.postID = _.uniqueId();
+        });
+        watchedState.posts = [...newPosts, ...watchedState.posts];
       }
     }));
 
   return Promise.all(promises)
-    .finally(setTimeout(() => updatePosts(state), 5000));
+    .finally(setTimeout(() => updatePosts(watchedState), 5000));
 };
 
 const validateUrl = (url, parsedUrl) => {
@@ -43,6 +46,13 @@ const runApp = (i18n) => {
     postsContainer: document.querySelector('.posts'),
     feedsContainer: document.querySelector('.feeds'),
     submitButton: document.querySelector('button[type="submit"]'),
+    postsLink: document.querySelector('a[target="_blank"]'),
+    buttonPost: document.querySelector('button[data-bs-toggle="modal"]'),
+    modal: {
+      modalTitle: document.querySelector('.modal-title'),
+      modalBody: document.querySelector('.modal-body'),
+      modalButton: document.querySelector('a[role="button"]'),
+    },
   };
 
   // model
@@ -53,8 +63,8 @@ const runApp = (i18n) => {
       error: '',
     },
     stateUI: {
-      postsUI: [],
-      feedsUI: [],
+      viewedPosts: [],
+      modalPost: null,
     },
     posts: [],
     feeds: [],
@@ -92,6 +102,24 @@ const runApp = (i18n) => {
   });
 
   updatePosts(watchedState);
+
+  container.postsContainer.addEventListener('click', (e) => {
+    const { target } = e;
+    const idPost = target.getAttribute('data-id');
+    const modalPost = watchedState.posts.flat().filter((post) => post.postID === idPost);
+    const selectedElement = target.tagName;
+    switch (selectedElement) {
+      case 'A':
+        watchedState.stateUI.viewedPosts.push(modalPost);
+        break;
+      case 'BUTTON':
+        watchedState.stateUI.viewedPosts.push(modalPost);
+        watchedState.stateUI.modalPost = (modalPost);
+        break;
+      default:
+        throw new Error(`this ${target} didn't in case`);
+    }
+  });
 };
 
 export default () => {
