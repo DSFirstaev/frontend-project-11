@@ -65,7 +65,7 @@ const renderFeeds = (state, container) => {
   feedsContainer.append(ulFeeds);
 };
 
-const renderPosts = (state, container) => {
+const renderPosts = (state, container, i18n) => {
   const { postsContainer } = container;
   postsContainer.innerHTML = '';
   const cardBorder = document.createElement('div');
@@ -98,7 +98,7 @@ const renderPosts = (state, container) => {
     buttonPost.setAttribute('data-id', `${post.postID}`);
     buttonPost.setAttribute('data-bs-toggle', 'modal');
     buttonPost.setAttribute('data-bs-target', '#myModal');
-    buttonPost.textContent = 'Просмотр';
+    buttonPost.textContent = i18n.t('interface.view');
     liPost.append(anchorPost, buttonPost);
     ulPosts.append(liPost);
   });
@@ -140,7 +140,7 @@ export default (state, container, i18n) => (path) => {
       renderFeeds(state, container);
       break;
     case 'posts':
-      renderPosts(state, container);
+      renderPosts(state, container, i18n);
       break;
     case 'stateUI.viewedPosts':
       renderViewedPosts(state, container);
