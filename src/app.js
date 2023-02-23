@@ -4,7 +4,7 @@ import axios from 'axios';
 import i18next from 'i18next';
 import onChange from 'on-change';
 import parser from './parser.js';
-import watcher from './watcher.js';
+import watch from './watcher.js';
 import resources from './locales/index.js';
 import errors from './locales/errors.js';
 
@@ -17,23 +17,23 @@ const fetchingData = (url) => axios
     throw new Error('networkError');
   });
 
-const updatePosts = (state) => {
-  const links = state.feeds.map((feed) => feed.linkFeed);
+const updatePosts = (watchedState) => {
+  const links = watchedState.feeds.map((feed) => feed.linkFeed);
   const promises = links.map((link) => fetchingData(link)
     .then((response) => {
       const { posts } = parser(response);
-      const currentPosts = onChange.target(state.posts).flat();
+      const currentPosts = onChange.target(watchedState.posts).flat();
       const newPosts = _.differenceBy(posts, currentPosts, 'titlePost');
       if (newPosts.length > 0) {
         newPosts.forEach((elem) => {
           elem.postID = _.uniqueId();
         });
-        state.posts = [...newPosts, ...state.posts];
+        watchedState.posts = [...newPosts, ...watchedState.posts];
       }
     }));
 
   return Promise.all(promises)
-    .finally(setTimeout(() => updatePosts(state), 5000));
+    .finally(setTimeout(() => updatePosts(watchedState), 5000));
 };
 
 const validateUrl = (url, parsedUrl) => {
@@ -72,14 +72,14 @@ const runApp = (i18n) => {
     feeds: [],
   };
 
-  const state = watcher(elements, initialState, i18n);
+  const watchedState = watch(elements, initialState, i18n);
 
   elements.form.addEventListener('submit', (e) => {
     e.preventDefault();
-    state.status = 'loading';
+    watchedState.status = 'loading';
     const formData = new FormData(e.target);
     const url = formData.get('url');
-    const parsedUrl = state.feeds.map((feed) => feed.linkFeed);
+    const parsedUrl = watchedState.feeds.map((feed) => feed.linkFeed);
     validateUrl(url, parsedUrl)
       .then(() => fetchingData(url))
       .then((response) => parser(response, url))
@@ -88,34 +88,34 @@ const runApp = (i18n) => {
         posts.forEach((elem) => {
           elem.postID = _.uniqueId();
         });
-        state.posts.unshift(posts);
-        state.feeds.unshift(feed);
-        state.form.valid = true;
-        state.status = 'waiting';
+        watchedState.posts.unshift(posts);
+        watchedState.feeds.unshift(feed);
+        watchedState.form.valid = true;
+        watchedState.status = 'waiting';
       })
       .catch((err) => {
-        state.form.valid = false;
-        state.form.error = err.message;
-        state.status = 'error!';
+        watchedState.form.valid = false;
+        watchedState.form.error = err.message;
+        watchedState.status = 'error!';
       });
     elements.form.reset();
     elements.input.focus();
   });
 
-  updatePosts(state);
+  updatePosts(watchedState);
 
   elements.postsContainer.addEventListener('click', (e) => {
     const { target } = e;
     const idPost = target.getAttribute('data-id');
-    const modalPost = state.posts.flat().filter((post) => post.postID === idPost);
+    const modalPost = watchedState.posts.flat().filter((post) => post.postID === idPost);
     const selectedElement = target.tagName;
     switch (selectedElement) {
       case 'A':
-        state.stateUI.viewedPosts.push(modalPost);
+        watchedState.stateUI.viewedPosts.push(modalPost);
         break;
       case 'BUTTON':
-        state.stateUI.viewedPosts.push(modalPost);
-        state.stateUI.modalPost = (modalPost);
+        watchedState.stateUI.viewedPosts.push(modalPost);
+        watchedState.stateUI.modalPost = (modalPost);
         break;
       default:
         throw new Error(`this ${target} didn't in case`);
