@@ -1,11 +1,14 @@
-import * as yup from 'yup';
+import { setLocale, string } from 'yup';
 import _ from 'lodash';
 import axios from 'axios';
 import i18next from 'i18next';
 import onChange from 'on-change';
 import parser from './parser.js';
-import render from './view.js';
-import resources from './locales/ru.js';
+import watcher from './watcher.js';
+import resources from './locales/index.js';
+import errors from './locales/errors.js';
+
+const defaultLanguage = 'ru';
 
 const fetchingData = (url) => axios
   .get(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`)
@@ -14,32 +17,32 @@ const fetchingData = (url) => axios
     throw new Error('networkError');
   });
 
-const updatePosts = (watchedState) => {
-  const links = watchedState.feeds.map((feed) => feed.linkFeed);
+const updatePosts = (state) => {
+  const links = state.feeds.map((feed) => feed.linkFeed);
   const promises = links.map((link) => fetchingData(link)
     .then((response) => {
       const { posts } = parser(response);
-      const currentPosts = onChange.target(watchedState.posts).flat();
+      const currentPosts = onChange.target(state.posts).flat();
       const newPosts = _.differenceBy(posts, currentPosts, 'titlePost');
       if (newPosts.length > 0) {
         newPosts.forEach((elem) => {
           elem.postID = _.uniqueId();
         });
-        watchedState.posts = [...newPosts, ...watchedState.posts];
+        state.posts = [...newPosts, ...state.posts];
       }
     }));
 
   return Promise.all(promises)
-    .finally(setTimeout(() => updatePosts(watchedState), 5000));
+    .finally(setTimeout(() => updatePosts(state), 5000));
 };
 
 const validateUrl = (url, parsedUrl) => {
-  const schema = yup.string().url().required().notOneOf(parsedUrl);
+  const schema = string().url().required().notOneOf(parsedUrl);
   return schema.validate(url);
 };
 
 const runApp = (i18n) => {
-  const container = {
+  const elements = {
     form: document.querySelector('form'),
     input: document.querySelector('input'),
     feedback: document.querySelector('.feedback'),
@@ -55,7 +58,6 @@ const runApp = (i18n) => {
     },
   };
 
-  // model
   const initialState = {
     status: 'waiting',
     form: {
@@ -70,15 +72,14 @@ const runApp = (i18n) => {
     feeds: [],
   };
 
-  const watchedState = onChange(initialState, render(initialState, container, i18n));
+  const state = watcher(elements, initialState, i18n);
 
-  // control
-  container.form.addEventListener('submit', (e) => {
+  elements.form.addEventListener('submit', (e) => {
     e.preventDefault();
-    watchedState.status = 'loading';
+    state.status = 'loading';
     const formData = new FormData(e.target);
     const url = formData.get('url');
-    const parsedUrl = watchedState.feeds.map((feed) => feed.linkFeed);
+    const parsedUrl = state.feeds.map((feed) => feed.linkFeed);
     validateUrl(url, parsedUrl)
       .then(() => fetchingData(url))
       .then((response) => parser(response, url))
@@ -87,34 +88,34 @@ const runApp = (i18n) => {
         posts.forEach((elem) => {
           elem.postID = _.uniqueId();
         });
-        watchedState.posts.unshift(posts);
-        watchedState.feeds.unshift(feed);
-        watchedState.form.valid = true;
-        watchedState.status = 'waiting';
+        state.posts.unshift(posts);
+        state.feeds.unshift(feed);
+        state.form.valid = true;
+        state.status = 'waiting';
       })
       .catch((err) => {
-        watchedState.form.valid = false;
-        watchedState.form.error = err.message;
-        watchedState.status = 'error!';
+        state.form.valid = false;
+        state.form.error = err.message;
+        state.status = 'error!';
       });
-    container.form.reset();
-    container.input.focus();
+    elements.form.reset();
+    elements.input.focus();
   });
 
-  updatePosts(watchedState);
+  updatePosts(state);
 
-  container.postsContainer.addEventListener('click', (e) => {
+  elements.postsContainer.addEventListener('click', (e) => {
     const { target } = e;
     const idPost = target.getAttribute('data-id');
-    const modalPost = watchedState.posts.flat().filter((post) => post.postID === idPost);
+    const modalPost = state.posts.flat().filter((post) => post.postID === idPost);
     const selectedElement = target.tagName;
     switch (selectedElement) {
       case 'A':
-        watchedState.stateUI.viewedPosts.push(modalPost);
+        state.stateUI.viewedPosts.push(modalPost);
         break;
       case 'BUTTON':
-        watchedState.stateUI.viewedPosts.push(modalPost);
-        watchedState.stateUI.modalPost = (modalPost);
+        state.stateUI.viewedPosts.push(modalPost);
+        state.stateUI.modalPost = (modalPost);
         break;
       default:
         throw new Error(`this ${target} didn't in case`);
@@ -123,23 +124,15 @@ const runApp = (i18n) => {
 };
 
 export default () => {
-  const defaultLanguage = 'ru';
   const i18n = i18next.createInstance();
 
   i18n.init({
     lng: defaultLanguage,
     debug: false,
-    resources: { ru: resources },
+    resources,
   })
     .then(() => {
-      yup.setLocale({
-        mixed: {
-          notOneOf: 'repeatUrl',
-        },
-        string: {
-          url: 'invalidUrl',
-        },
-      });
-    })
-    .then(() => runApp(i18n));
+      setLocale(errors);
+      runApp(i18n);
+    });
 };

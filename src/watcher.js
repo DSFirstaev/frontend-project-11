@@ -1,21 +1,23 @@
-const disableButton = (state, container) => {
+import onChange from 'on-change';
+
+const disableButton = (state, elements) => {
   if (state.status === 'loading') {
-    container.submitButton.classList.add('disabled');
+    elements.submitButton.classList.add('disabled');
   } else {
-    container.submitButton.classList.remove('disabled');
+    elements.submitButton.classList.remove('disabled');
   }
 };
 
-const renderValid = (container, i18n) => {
-  const inputField = container.input;
-  const inputFeedback = container.feedback;
+const renderValid = (elements, i18n) => {
+  const inputField = elements.input;
+  const inputFeedback = elements.feedback;
   inputField.classList.remove('is-invalid');
   inputFeedback.classList.remove('text-danger');
   inputFeedback.classList.add('text-success');
   inputFeedback.textContent = i18n.t('success');
 };
 
-const renderError = (state, container, i18n) => {
+const renderError = (state, elements, i18n) => {
   const errors = {
     repeatUrl: () => i18n.t('errors.repeatUrl'),
     invalidUrl: () => i18n.t('errors.invalidUrl'),
@@ -24,16 +26,16 @@ const renderError = (state, container, i18n) => {
   };
 
   const handleError = (errorCode) => errors[errorCode]();
-  const inputField = container.input;
-  const inputFeedback = container.feedback;
+  const inputField = elements.input;
+  const inputFeedback = elements.feedback;
   inputField.classList.add('is-invalid');
   inputFeedback.classList.add('text-danger');
   inputFeedback.classList.remove('text-success');
   inputFeedback.textContent = handleError(state.form.error);
 };
 
-const renderFeeds = (state, container) => {
-  const { feedsContainer } = container;
+const renderFeeds = (state, elements) => {
+  const { feedsContainer } = elements;
   feedsContainer.innerHTML = '';
   const cardBorder = document.createElement('div');
   cardBorder.classList.add('card', 'border-0');
@@ -65,8 +67,8 @@ const renderFeeds = (state, container) => {
   feedsContainer.append(ulFeeds);
 };
 
-const renderPosts = (state, container, i18n) => {
-  const { postsContainer } = container;
+const renderPosts = (state, elements, i18n) => {
+  const { postsContainer } = elements;
   postsContainer.innerHTML = '';
   const cardBorder = document.createElement('div');
   cardBorder.classList.add('card', 'border-0');
@@ -97,22 +99,22 @@ const renderPosts = (state, container, i18n) => {
     buttonPost.classList.add('btn', 'btn-outline-primary', 'btn-sm');
     buttonPost.setAttribute('data-id', `${post.postID}`);
     buttonPost.setAttribute('data-bs-toggle', 'modal');
-    buttonPost.setAttribute('data-bs-target', '#myModal');
+    buttonPost.setAttribute('data-bs-target', '#modal');
     buttonPost.textContent = i18n.t('interface.view');
     liPost.append(anchorPost, buttonPost);
     ulPosts.append(liPost);
   });
 };
 
-const renderModal = (state, container) => {
+const renderModal = (state, elements) => {
   const [{ titlePost, descriptionPost, linkPost }] = state.stateUI.modalPost;
-  container.modal.modalTitle.textContent = titlePost;
-  container.modal.modalBody.textContent = descriptionPost;
-  container.modal.modalButton.setAttribute('href', `${linkPost}`);
+  elements.modal.modalTitle.textContent = titlePost;
+  elements.modal.modalBody.textContent = descriptionPost;
+  elements.modal.modalButton.setAttribute('href', `${linkPost}`);
 };
 
-const renderViewedPosts = (state, container) => {
-  const anchorsPost = container.postsContainer.querySelectorAll('.fw-bold');
+const renderViewedPosts = (state, elements) => {
+  const anchorsPost = elements.postsContainer.querySelectorAll('.fw-bold');
   const viewedPostTextContent = state.stateUI.viewedPosts.map((posts) => {
     const [{ titlePost }] = posts;
     return titlePost;
@@ -125,30 +127,33 @@ const renderViewedPosts = (state, container) => {
   });
 };
 
-export default (state, container, i18n) => (path) => {
-  switch (path) {
-    case 'status':
-      disableButton(state, container);
-      break;
-    case 'form.valid':
-      renderValid(container, i18n);
-      break;
-    case 'form.error':
-      renderError(state, container, i18n);
-      break;
-    case 'feeds':
-      renderFeeds(state, container);
-      break;
-    case 'posts':
-      renderPosts(state, container, i18n);
-      break;
-    case 'stateUI.viewedPosts':
-      renderViewedPosts(state, container);
-      break;
-    case 'stateUI.modalPost':
-      renderModal(state, container);
-      break;
-    default:
-      throw new Error(`${path} is a wrong path`);
-  }
+export default (elements, initState, i18n) => {
+  const watchedState = onChange(initState, (path) => {
+    switch (path) {
+      case 'status':
+        disableButton(initState, elements);
+        break;
+      case 'form.valid':
+        renderValid(elements, i18n);
+        break;
+      case 'form.error':
+        renderError(initState, elements, i18n);
+        break;
+      case 'feeds':
+        renderFeeds(initState, elements);
+        break;
+      case 'posts':
+        renderPosts(initState, elements, i18n);
+        break;
+      case 'stateUI.viewedPosts':
+        renderViewedPosts(initState, elements);
+        break;
+      case 'stateUI.modalPost':
+        renderModal(initState, elements);
+        break;
+      default:
+        throw new Error(`${path} is a wrong path`);
+    }
+  });
+  return watchedState;
 };

@@ -1,7 +1,7 @@
 # RSS AGGREGATOR
-*This is a project of aggregator of rss-subscribes*
+*This is project of aggregator of rss-subscribes*
 
-[Link to aggregator](https://frontend-project-11-ljsbiwnc9-dsfirstaev.vercel.app)
+[Link to demo-version](https://frontend-project-11-ljsbiwnc9-dsfirstaev.vercel.app)
 
 ### Hexlet tests and linter status:
 [![Actions Status](https://github.com/DSFirstaev/frontend-project-11/workflows/hexlet-check/badge.svg)](https://github.com/DSFirstaev/frontend-project-11/actions)
@@ -11,3 +11,19 @@
 
 ### Eslint status:
 [![Actions Status](https://github.com/DSFirstaev/frontend-project-11/workflows/Eslint/badge.svg)](https://github.com/DSFirstaev/frontend-project-11/actions)
+
+This project has been created using **webpack-cli**, you can now run
+```
+npm run build
+```
+or
+```
+yarn build
+```
+to bundle your application.
+
+*****
+## System requirements
+Node.js version: v17.9.0
+
+Linux or Mac OS
