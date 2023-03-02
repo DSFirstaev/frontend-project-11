@@ -11,18 +11,17 @@ import errors from './locales/errors.js';
 const defaultLanguage = 'ru';
 
 const getErrorCode = (error) => {
-  if (error === 'Network Error') {
+  const isAxiosError = (error.name === 'AxiosError');
+  if (isAxiosError && error.message === 'Network Error') {
     return 'networkError';
   }
-  return null;
+  return 'parserError';
 };
 
 const request = (url) => axios
   .get(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`)
-  .then((response) => response.data.contents)
-  .catch((error) => {
-    getErrorCode(error);
-  });
+  .then((response) => response.data.contents);
+  // .catch((error) => getErrorCode(error.message));
 
 const fetchingData = (url, watchedState) => {
   watchedState.loadingProcess = {
@@ -47,7 +46,7 @@ const fetchingData = (url, watchedState) => {
     .catch((error) => {
       watchedState.loadingProcess = {
         status: 'fail',
-        error: error.message,
+        error: getErrorCode(error),
       };
     });
 };
