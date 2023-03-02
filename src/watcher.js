@@ -1,37 +1,56 @@
 import onChange from 'on-change';
 
-const disableButton = (state, elements) => {
-  if (state.status === 'loading') {
+const renderInputAndSubmitButton = (initialState, elements) => {
+  if (initialState.loadingProcess.status === 'loading') {
     elements.submitButton.classList.add('disabled');
-  } else {
+  }
+  if (initialState.loadingProcess.status === 'success') {
+    elements.submitButton.classList.remove('disabled');
+    elements.form.reset();
+  }
+  if (initialState.loadingProcess.status === 'fail') {
     elements.submitButton.classList.remove('disabled');
   }
 };
 
-const renderValid = (elements, i18n) => {
-  const inputField = elements.input;
-  const inputFeedback = elements.feedback;
-  inputField.classList.remove('is-invalid');
-  inputFeedback.classList.remove('text-danger');
-  inputFeedback.classList.add('text-success');
-  inputFeedback.textContent = i18n.t('success');
+const errorsMessage = {
+  repeatUrl: (i18n) => i18n.t('errors.repeatUrl'),
+  invalidUrl: (i18n) => i18n.t('errors.invalidUrl'),
+  parserError: (i18n) => i18n.t('errors.parserError'),
+  networkError: (i18n) => i18n.t('errors.networkError'),
 };
 
-const renderError = (state, elements, i18n) => {
-  const errors = {
-    repeatUrl: () => i18n.t('errors.repeatUrl'),
-    invalidUrl: () => i18n.t('errors.invalidUrl'),
-    parserError: () => i18n.t('errors.parserError'),
-    networkError: () => i18n.t('errors.networkError'),
-  };
+const renderFeedbackValid = (initialState, elements, i18n) => {
+  if (initialState.loadingProcess.status !== 'success') {
+    return;
+  }
+  elements.input.classList.remove('is-invalid');
+  elements.feedback.classList.remove('text-danger');
+  elements.feedback.classList.add('text-success');
+  elements.feedback.textContent = i18n.t('success');
+};
 
-  const handleError = (errorCode) => errors[errorCode]();
-  const inputField = elements.input;
-  const inputFeedback = elements.feedback;
-  inputField.classList.add('is-invalid');
-  inputFeedback.classList.add('text-danger');
-  inputFeedback.classList.remove('text-success');
-  inputFeedback.textContent = handleError(state.form.error);
+const renderFeedbackError = (errorCode, elements, i18n) => {
+  elements.input.classList.add('is-invalid');
+  elements.feedback.classList.add('text-danger');
+  elements.feedback.classList.remove('text-success');
+  elements.feedback.textContent = errorsMessage[errorCode](i18n);
+};
+
+const handleFormError = (initialState, elements, i18n) => {
+  if (initialState.form.status === 'filling') {
+    return;
+  }
+
+  renderFeedbackError(initialState.form.error, elements, i18n);
+};
+
+const handleloadingProcessError = (initialState, elements, i18n) => {
+  if (initialState.loadingProcess.status !== 'fail') {
+    return;
+  }
+
+  renderFeedbackError(initialState.loadingProcess.error, elements, i18n);
 };
 
 const renderFeeds = (state, elements) => {
@@ -106,8 +125,8 @@ const renderPosts = (state, elements, i18n) => {
   });
 };
 
-const renderModal = (state, elements) => {
-  const [{ titlePost, descriptionPost, linkPost }] = state.stateUI.modalPost;
+const renderModal = (initState, elements) => {
+  const [{ titlePost, descriptionPost, linkPost }] = initState.modalPost;
   elements.modal.modalTitle.textContent = titlePost;
   elements.modal.modalBody.textContent = descriptionPost;
   elements.modal.modalButton.setAttribute('href', `${linkPost}`);
@@ -115,7 +134,7 @@ const renderModal = (state, elements) => {
 
 const renderViewedPosts = (state, elements) => {
   const anchorsPost = elements.postsContainer.querySelectorAll('.fw-bold');
-  const viewedPostTextContent = state.stateUI.viewedPosts.map((posts) => {
+  const viewedPostTextContent = state.viewedPosts.map((posts) => {
     const [{ titlePost }] = posts;
     return titlePost;
   });
@@ -130,14 +149,13 @@ const renderViewedPosts = (state, elements) => {
 export default (elements, initState, i18n) => {
   const watchedState = onChange(initState, (path) => {
     switch (path) {
-      case 'status':
-        disableButton(initState, elements);
+      case 'form':
+        handleFormError(initState, elements, i18n);
         break;
-      case 'form.valid':
-        renderValid(elements, i18n);
-        break;
-      case 'form.error':
-        renderError(initState, elements, i18n);
+      case 'loadingProcess':
+        renderInputAndSubmitButton(initState, elements);
+        renderFeedbackValid(initState, elements, i18n);
+        handleloadingProcessError(initState, elements, i18n);
         break;
       case 'feeds':
         renderFeeds(initState, elements);
@@ -145,10 +163,10 @@ export default (elements, initState, i18n) => {
       case 'posts':
         renderPosts(initState, elements, i18n);
         break;
-      case 'stateUI.viewedPosts':
+      case 'viewedPosts':
         renderViewedPosts(initState, elements);
         break;
-      case 'stateUI.modalPost':
+      case 'modalPost':
         renderModal(initState, elements);
         break;
       default:

@@ -10,18 +10,54 @@ import errors from './locales/errors.js';
 
 const defaultLanguage = 'ru';
 
-const fetchingData = (url) => axios
+const getErrorCode = (error) => {
+  if (error === 'Network Error') {
+    return 'networkError';
+  }
+  return null;
+};
+
+const request = (url) => axios
   .get(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`)
   .then((response) => response.data.contents)
-  .catch(() => {
-    throw new Error('networkError');
+  .catch((error) => {
+    getErrorCode(error);
   });
+
+const fetchingData = (url, watchedState) => {
+  watchedState.loadingProcess = {
+    status: 'loading',
+    error: '',
+  };
+
+  request(url)
+    .then((data) => parser(data, url))
+    .then((parsedContent) => {
+      const { feed, posts } = parsedContent;
+      posts.forEach((elem) => {
+        elem.postID = _.uniqueId();
+      });
+      watchedState.posts.unshift(posts);
+      watchedState.feeds.unshift(feed);
+      watchedState.loadingProcess = {
+        status: 'success',
+        error: '',
+      };
+    })
+    .catch((error) => {
+      watchedState.loadingProcess = {
+        status: 'fail',
+        error: error.message,
+      };
+    });
+};
 
 const updatePosts = (watchedState) => {
   const links = watchedState.feeds.map((feed) => feed.linkFeed);
-  const promises = links.map((link) => fetchingData(link)
-    .then((response) => {
-      const { posts } = parser(response);
+  const promises = links.map((link) => request(link)
+    .then((data) => parser(data))
+    .then((parsedContent) => {
+      const { posts } = parsedContent;
       const currentPosts = onChange.target(watchedState.posts).flat();
       const newPosts = _.differenceBy(posts, currentPosts, 'titlePost');
       if (newPosts.length > 0) {
@@ -38,7 +74,9 @@ const updatePosts = (watchedState) => {
 
 const validateUrl = (url, parsedUrl) => {
   const schema = string().url().required().notOneOf(parsedUrl);
-  return schema.validate(url);
+  return schema.validate(url)
+    .then(() => null)
+    .catch((error) => error.message);
 };
 
 const runApp = (i18n) => {
@@ -59,63 +97,61 @@ const runApp = (i18n) => {
   };
 
   const initialState = {
-    status: 'waiting',
     form: {
-      valid: false,
+      status: 'filling',
       error: '',
     },
-    stateUI: {
-      viewedPosts: [],
-      modalPost: null,
+    loadingProcess: {
+      status: 'idle',
+      error: '',
     },
     posts: [],
     feeds: [],
+    viewedPosts: [],
+    modalPost: '',
   };
 
   const watchedState = watch(elements, initialState, i18n);
 
-  elements.form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    watchedState.status = 'loading';
-    const formData = new FormData(e.target);
+  elements.form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.target);
     const url = formData.get('url');
     const parsedUrl = watchedState.feeds.map((feed) => feed.linkFeed);
     validateUrl(url, parsedUrl)
-      .then(() => fetchingData(url))
-      .then((response) => parser(response, url))
-      .then((parsedData) => {
-        const { feed, posts } = parsedData;
-        posts.forEach((elem) => {
-          elem.postID = _.uniqueId();
-        });
-        watchedState.posts.unshift(posts);
-        watchedState.feeds.unshift(feed);
-        watchedState.form.valid = true;
-        watchedState.status = 'waiting';
-      })
-      .catch((err) => {
-        watchedState.form.valid = false;
-        watchedState.form.error = err.message;
-        watchedState.status = 'error!';
+      .then((error) => {
+        if (error) {
+          watchedState.form = {
+            status: 'invalid',
+            error,
+          };
+        } else {
+          watchedState.form = {
+            status: 'filling',
+            error: 'result',
+          };
+
+          fetchingData(url, watchedState);
+        }
       });
-    elements.form.reset();
+
     elements.input.focus();
   });
 
   updatePosts(watchedState);
 
-  elements.postsContainer.addEventListener('click', (e) => {
-    const { target } = e;
+  elements.postsContainer.addEventListener('click', (event) => {
+    const { target } = event;
     const idPost = target.getAttribute('data-id');
     const modalPost = watchedState.posts.flat().filter((post) => post.postID === idPost);
     const selectedElement = target.tagName;
     switch (selectedElement) {
       case 'A':
-        watchedState.stateUI.viewedPosts.push(modalPost);
+        watchedState.viewedPosts.push(modalPost);
         break;
       case 'BUTTON':
-        watchedState.stateUI.viewedPosts.push(modalPost);
-        watchedState.stateUI.modalPost = (modalPost);
+        watchedState.viewedPosts.push(modalPost);
+        watchedState.modalPost = modalPost;
         break;
       default:
         throw new Error(`this ${target} didn't in case`);
