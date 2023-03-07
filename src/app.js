@@ -15,26 +15,33 @@ const getErrorCode = (error) => {
   if (isAxiosError && error.message === 'Network Error') {
     return 'networkError';
   }
+  if (isAxiosError && error.message.includes('timeout')) {
+    return 'timeoutError';
+  }
   return 'parserError';
 };
 
-const request = (url) => axios
-  .get(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`)
-  .then((response) => response.data.contents);
-  // .catch((error) => getErrorCode(error.message));
+const addProxy = (originUrl) => {
+  const proxyUrl = new URL('/get', 'https://allorigins.hexlet.app');
+  proxyUrl.searchParams.set('url', originUrl);
+  proxyUrl.searchParams.set('disableCache', 'true');
+  return proxyUrl.toString();
+};
 
-const fetchingData = (url, watchedState) => {
+const fetchData = (url, watchedState) => {
   watchedState.loadingProcess = {
     status: 'loading',
     error: '',
   };
 
-  request(url)
-    .then((data) => parser(data, url))
-    .then((parsedContent) => {
-      const { feed, posts } = parsedContent;
+  axios
+    .get(addProxy(url), { timeout: 10000 })
+    .then((response) => {
+      const { feed, posts } = parser(response.data.contents, url);
+      feed.feedID = _.uniqueId();
       posts.forEach((elem) => {
         elem.postID = _.uniqueId();
+        elem.feedID = feed.feedID;
       });
       watchedState.posts.unshift(posts);
       watchedState.feeds.unshift(feed);
@@ -53,15 +60,20 @@ const fetchingData = (url, watchedState) => {
 
 const updatePosts = (watchedState) => {
   const links = watchedState.feeds.map((feed) => feed.linkFeed);
-  const promises = links.map((link) => request(link)
-    .then((data) => parser(data))
-    .then((parsedContent) => {
-      const { posts } = parsedContent;
+  const promises = links.map((link) => axios
+    .get(addProxy(link), { timeout: 10000 })
+    .then((response) => {
+      const { feed, posts } = parser(response.data.contents);
       const currentPosts = onChange.target(watchedState.posts).flat();
       const newPosts = _.differenceBy(posts, currentPosts, 'titlePost');
       if (newPosts.length > 0) {
-        newPosts.forEach((elem) => {
-          elem.postID = _.uniqueId();
+        watchedState.feeds.forEach((stateFeed) => {
+          if (stateFeed.descriptionFeed === feed.descriptionFeed) {
+            newPosts.forEach((elem) => {
+              elem.postID = _.uniqueId();
+              elem.feedID = stateFeed.feedID;
+            });
+          }
         });
         watchedState.posts = [...newPosts, ...watchedState.posts];
       }
@@ -114,6 +126,7 @@ const runApp = (i18n) => {
 
   elements.form.addEventListener('submit', (event) => {
     event.preventDefault();
+    elements.input.focus();
     const formData = new FormData(event.target);
     const url = formData.get('url');
     const parsedUrl = watchedState.feeds.map((feed) => feed.linkFeed);
@@ -127,14 +140,12 @@ const runApp = (i18n) => {
         } else {
           watchedState.form = {
             status: 'filling',
-            error: 'result',
+            error: '',
           };
 
-          fetchingData(url, watchedState);
+          fetchData(url, watchedState);
         }
       });
-
-    elements.input.focus();
   });
 
   updatePosts(watchedState);

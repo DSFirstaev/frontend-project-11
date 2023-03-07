@@ -6,6 +6,7 @@ export default {
       invalidUrl: 'Ссылка должна быть валидным URL',
       parserError: 'Ресурс не содержит валидный RSS',
       networkError: 'Ошибка сети',
+      timeoutError: 'Превышено время ожидания ответа',
     },
     interface: {
       view: 'Просмотр',

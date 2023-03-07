@@ -18,6 +18,7 @@ const errorsMessage = {
   invalidUrl: (i18n) => i18n.t('errors.invalidUrl'),
   parserError: (i18n) => i18n.t('errors.parserError'),
   networkError: (i18n) => i18n.t('errors.networkError'),
+  timeoutError: (i18n) => i18n.t('errors.timeoutError'),
 };
 
 const renderFeedbackValid = (initialState, elements, i18n) => {
