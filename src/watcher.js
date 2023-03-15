@@ -19,6 +19,7 @@ const errorsMessage = {
   parserError: (i18n) => i18n.t('errors.parserError'),
   networkError: (i18n) => i18n.t('errors.networkError'),
   timeoutError: (i18n) => i18n.t('errors.timeoutError'),
+  unknownError: (i18n) => i18n.t('errors.unknownError'),
 };
 
 const renderFeedbackValid = (initialState, elements, i18n) => {
@@ -74,12 +75,13 @@ const renderFeeds = (state, elements) => {
   state.feeds.forEach((feed) => {
     const liFeed = document.createElement('li');
     liFeed.classList.add('list-group-item', 'border-0', 'border-end-0');
+    liFeed.setAttribute('id', `${feed.id}`);
     const titleFeed = document.createElement('h3');
     titleFeed.classList.add('h6', 'm-0');
-    titleFeed.textContent = feed.titleFeed;
+    titleFeed.textContent = feed.title;
     const descriptionFeed = document.createElement('p');
     descriptionFeed.classList.add('m-0', 'small', 'text-black-50');
-    descriptionFeed.textContent = feed.descriptionFeed;
+    descriptionFeed.textContent = feed.description;
     liFeed.append(titleFeed, descriptionFeed);
     ulFeeds.append(liFeed);
   });
@@ -108,16 +110,20 @@ const renderPosts = (state, elements, i18n) => {
     const liPost = document.createElement('li');
     liPost.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start', 'border-0', 'border-end-0');
     const anchorPost = document.createElement('a');
-    anchorPost.setAttribute('href', `${post.linkPost}`);
+    anchorPost.setAttribute('href', `${post.link}`);
     anchorPost.classList.add('fw-bold');
-    anchorPost.setAttribute('data-id', `${post.postID}`);
+    anchorPost.setAttribute('data-id', `${post.id}`);
+    if (state.viewedPostsId.has(anchorPost.dataset.id)) {
+      anchorPost.classList.remove('fw-bold');
+      anchorPost.classList.add('fw-normal', 'link-secondary');
+    }
     anchorPost.setAttribute('target', '_blank');
     anchorPost.setAttribute('rel', 'noopener noreferrer');
-    anchorPost.textContent = post.titlePost;
+    anchorPost.textContent = post.title;
     const buttonPost = document.createElement('button');
     buttonPost.setAttribute('type', 'button');
     buttonPost.classList.add('btn', 'btn-outline-primary', 'btn-sm');
-    buttonPost.setAttribute('data-id', `${post.postID}`);
+    buttonPost.setAttribute('data-id', `${post.id}`);
     buttonPost.setAttribute('data-bs-toggle', 'modal');
     buttonPost.setAttribute('data-bs-target', '#modal');
     buttonPost.textContent = i18n.t('interface.view');
@@ -127,20 +133,17 @@ const renderPosts = (state, elements, i18n) => {
 };
 
 const renderModal = (initState, elements) => {
-  const [{ titlePost, descriptionPost, linkPost }] = initState.modalPost;
-  elements.modal.modalTitle.textContent = titlePost;
-  elements.modal.modalBody.textContent = descriptionPost;
-  elements.modal.modalButton.setAttribute('href', `${linkPost}`);
+  const modalPost = initState.posts.flat().filter((post) => post.id === initState.modalPostId);
+  const [{ title, description, link }] = modalPost;
+  elements.modal.title.textContent = title;
+  elements.modal.body.textContent = description;
+  elements.modal.button.setAttribute('href', `${link}`);
 };
 
-const renderViewedPosts = (state, elements) => {
-  const anchorsPost = elements.postsContainer.querySelectorAll('.fw-bold');
-  const viewedPostTextContent = state.viewedPosts.map((posts) => {
-    const [{ titlePost }] = posts;
-    return titlePost;
-  });
-  anchorsPost.forEach((anchor) => {
-    if (viewedPostTextContent.includes(anchor.textContent)) {
+const renderViewedPosts = (initState, elements) => {
+  const anchorsPosts = elements.postsContainer.querySelectorAll('.fw-bold');
+  anchorsPosts.forEach((anchor) => {
+    if (initState.viewedPostsId.has(anchor.dataset.id)) {
       anchor.classList.remove('fw-bold');
       anchor.classList.add('fw-normal', 'link-secondary');
     }
@@ -164,10 +167,10 @@ export default (elements, initState, i18n) => {
       case 'posts':
         renderPosts(initState, elements, i18n);
         break;
-      case 'viewedPosts':
+      case 'viewedPostsId':
         renderViewedPosts(initState, elements);
         break;
-      case 'modalPost':
+      case 'modalPostId':
         renderModal(initState, elements);
         break;
       default:

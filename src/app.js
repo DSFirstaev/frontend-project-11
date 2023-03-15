@@ -2,23 +2,24 @@ import { setLocale, string } from 'yup';
 import _ from 'lodash';
 import axios from 'axios';
 import i18next from 'i18next';
-import onChange from 'on-change';
 import parser from './parser.js';
 import watch from './watcher.js';
 import resources from './locales/index.js';
-import errors from './locales/errors.js';
+import locale from './locales/locale.js';
 
 const defaultLanguage = 'ru';
 
 const getErrorCode = (error) => {
-  const isAxiosError = (error.name === 'AxiosError');
-  if (isAxiosError && error.message === 'Network Error') {
-    return 'networkError';
+  if (error.isParsingError) {
+    return 'parserError';
   }
-  if (isAxiosError && error.message.includes('timeout')) {
+  if (error.code === 'ECONNABORTED') {
     return 'timeoutError';
   }
-  return 'parserError';
+  if (error.code === 'ERR_NETWORK') {
+    return 'networkError';
+  }
+  return 'unknownError';
 };
 
 const addProxy = (originUrl) => {
@@ -37,11 +38,12 @@ const fetchData = (url, watchedState) => {
   axios
     .get(addProxy(url), { timeout: 10000 })
     .then((response) => {
-      const { feed, posts } = parser(response.data.contents, url);
-      feed.feedID = _.uniqueId();
+      const { feed, posts } = parser(response.data.contents);
+      feed.url = url;
+      feed.id = _.uniqueId();
       posts.forEach((elem) => {
-        elem.postID = _.uniqueId();
-        elem.feedID = feed.feedID;
+        elem.id = _.uniqueId();
+        elem.feedId = feed.id;
       });
       watchedState.posts.unshift(posts);
       watchedState.feeds.unshift(feed);
@@ -59,24 +61,29 @@ const fetchData = (url, watchedState) => {
 };
 
 const updatePosts = (watchedState) => {
-  const links = watchedState.feeds.map((feed) => feed.linkFeed);
-  const promises = links.map((link) => axios
-    .get(addProxy(link), { timeout: 10000 })
+  const promises = watchedState.feeds.map(({ id, url }) => axios
+    .get(addProxy(url), { timeout: 10000 })
     .then((response) => {
-      const { feed, posts } = parser(response.data.contents);
-      const currentPosts = onChange.target(watchedState.posts).flat();
-      const newPosts = _.differenceBy(posts, currentPosts, 'titlePost');
-      if (newPosts.length > 0) {
-        watchedState.feeds.forEach((stateFeed) => {
-          if (stateFeed.descriptionFeed === feed.descriptionFeed) {
-            newPosts.forEach((elem) => {
-              elem.postID = _.uniqueId();
-              elem.feedID = stateFeed.feedID;
-            });
-          }
+      const { posts } = parser(response.data.contents);
+      const currentPosts = watchedState.posts.flat();
+      const newPosts = _.differenceBy(posts, currentPosts, 'title')
+        .map((newPost) => {
+          newPost.id = _.uniqueId();
+          newPost.feedId = id;
+          return newPost;
         });
-        watchedState.posts = [...newPosts, ...watchedState.posts];
-      }
+
+      watchedState.posts = [...newPosts, ...watchedState.posts];
+      watchedState.loadingProcess = {
+        status: 'success',
+        error: '',
+      };
+    })
+    .catch((error) => {
+      watchedState.loadingProcess = {
+        status: 'fail',
+        error: getErrorCode(error),
+      };
     }));
 
   return Promise.all(promises)
@@ -101,9 +108,9 @@ const runApp = (i18n) => {
     postsLink: document.querySelector('a[target="_blank"]'),
     buttonPost: document.querySelector('button[data-bs-toggle="modal"]'),
     modal: {
-      modalTitle: document.querySelector('.modal-title'),
-      modalBody: document.querySelector('.modal-body'),
-      modalButton: document.querySelector('a[role="button"]'),
+      title: document.querySelector('.modal-title'),
+      body: document.querySelector('.modal-body'),
+      button: document.querySelector('a[role="button"]'),
     },
   };
 
@@ -118,8 +125,8 @@ const runApp = (i18n) => {
     },
     posts: [],
     feeds: [],
-    viewedPosts: [],
-    modalPost: '',
+    viewedPostsId: new Set(),
+    modalPostId: '',
   };
 
   const watchedState = watch(elements, initialState, i18n);
@@ -129,7 +136,7 @@ const runApp = (i18n) => {
     elements.input.focus();
     const formData = new FormData(event.target);
     const url = formData.get('url');
-    const parsedUrl = watchedState.feeds.map((feed) => feed.linkFeed);
+    const parsedUrl = watchedState.feeds.map((feed) => feed.url);
     validateUrl(url, parsedUrl)
       .then((error) => {
         if (error) {
@@ -152,19 +159,12 @@ const runApp = (i18n) => {
 
   elements.postsContainer.addEventListener('click', (event) => {
     const { target } = event;
-    const idPost = target.getAttribute('data-id');
-    const modalPost = watchedState.posts.flat().filter((post) => post.postID === idPost);
-    const selectedElement = target.tagName;
-    switch (selectedElement) {
-      case 'A':
-        watchedState.viewedPosts.push(modalPost);
-        break;
-      case 'BUTTON':
-        watchedState.viewedPosts.push(modalPost);
-        watchedState.modalPost = modalPost;
-        break;
-      default:
-        throw new Error(`this ${target} didn't in case`);
+    const postId = target.getAttribute('data-id');
+    if (target.hasAttribute('data-id')) {
+      watchedState.viewedPostsId.add(postId);
+    }
+    if (target.tagName === 'BUTTON') {
+      watchedState.modalPostId = postId;
     }
   });
 };
@@ -178,7 +178,7 @@ export default () => {
     resources,
   })
     .then(() => {
-      setLocale(errors);
+      setLocale(locale);
       runApp(i18n);
     });
 };

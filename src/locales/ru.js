@@ -7,6 +7,7 @@ export default {
       parserError: 'Ресурс не содержит валидный RSS',
       networkError: 'Ошибка сети',
       timeoutError: 'Превышено время ожидания ответа',
+      unknownError: 'Неизвестная ошибка',
     },
     interface: {
       view: 'Просмотр',
