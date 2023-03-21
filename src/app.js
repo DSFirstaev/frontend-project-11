@@ -155,17 +155,19 @@ const runApp = (i18n) => {
       });
   });
 
-  updatePosts(watchedState);
+  setTimeout(() => updatePosts(watchedState), 5000);
 
   elements.postsContainer.addEventListener('click', (event) => {
     const { target } = event;
-    const postId = target.getAttribute('data-id');
-    if (target.hasAttribute('data-id')) {
-      watchedState.viewedPostsId.add(postId);
+    let postId;
+    if (target.tagName === 'A') {
+      postId = target.nextSibling.getAttribute('data-id');
     }
     if (target.tagName === 'BUTTON') {
+      postId = target.getAttribute('data-id');
       watchedState.modalPostId = postId;
     }
+    watchedState.viewedPostsId.add(postId);
   });
 };
 
