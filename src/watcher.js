@@ -7,27 +7,6 @@ const setFeedbackError = (errorCode, elements, i18n) => {
   elements.feedback.textContent = i18n.t(`errors.${errorCode}`);
 };
 
-const handleFormError = (state, elements, i18n) => {
-  if (state.form.status === 'filling') {
-    return;
-  }
-
-  setFeedbackError(state.form.error, elements, i18n);
-};
-
-const handleFormActive = (state, elements) => {
-  if (state.loadingProcess.status === 'loading') {
-    elements.submitButton.classList.add('disabled');
-  }
-  if (state.loadingProcess.status === 'success') {
-    elements.submitButton.classList.remove('disabled');
-    elements.form.reset();
-  }
-  if (state.loadingProcess.status === 'fail') {
-    elements.submitButton.classList.remove('disabled');
-  }
-};
-
 const setFeedbackValid = (state, elements, i18n) => {
   if (state.loadingProcess.status !== 'success') {
     return;
@@ -38,21 +17,31 @@ const setFeedbackValid = (state, elements, i18n) => {
   elements.feedback.textContent = i18n.t('success');
 };
 
-const handleloadingProcessError = (state, elements, i18n) => {
-  if (state.loadingProcess.status !== 'fail') {
-    return;
+const handleForm = (state, elements, i18n) => {
+  if (state.form.status === 'invalid') {
+    setFeedbackError(state.form.error, elements, i18n);
+  } else {
+    setFeedbackValid(state, elements, i18n);
   }
-
-  setFeedbackError(state.loadingProcess.error, elements, i18n);
 };
 
 const handleloadingProcess = (state, elements, i18n) => {
-  handleFormActive(state, elements);
-  setFeedbackValid(state, elements, i18n);
-  handleloadingProcessError(state, elements, i18n);
+  switch (state.loadingProcess.status) {
+    case 'loading':
+      elements.submitButton.classList.add('disabled');
+      break;
+    case 'fail':
+      elements.submitButton.classList.remove('disabled');
+      setFeedbackError(state.loadingProcess.error, elements, i18n);
+      break;
+    default:
+      elements.submitButton.classList.remove('disabled');
+      elements.form.reset();
+      setFeedbackValid(state, elements, i18n);
+  }
 };
 
-const renderFeeds = (state, elements) => {
+const renderFeeds = (state, elements, i18n) => {
   const { feedsContainer } = elements;
   feedsContainer.innerHTML = '';
 
@@ -64,7 +53,7 @@ const renderFeeds = (state, elements) => {
 
   const feedsTitle = document.createElement('h2');
   feedsTitle.classList.add('card-title', 'h4');
-  feedsTitle.textContent = 'Фиды';
+  feedsTitle.textContent = i18n.t('interface.feeds');
 
   feedsContainer.append(cardBorder);
   cardBorder.append(cardBody);
@@ -73,7 +62,7 @@ const renderFeeds = (state, elements) => {
   const ulFeeds = document.createElement('ul');
   ulFeeds.classList.add('list-group', 'border-0', 'rounded-0');
   cardBorder.append(ulFeeds);
-  ulFeeds.innerHTML = '';
+  // ulFeeds.innerHTML = '';
 
   state.feeds.forEach((feed) => {
     const liFeed = document.createElement('li');
@@ -107,7 +96,7 @@ const renderPosts = (state, elements, i18n) => {
 
   const postTitle = document.createElement('h2');
   postTitle.classList.add('card-title', 'h4');
-  postTitle.textContent = 'Посты';
+  postTitle.textContent = i18n.t('interface.posts');
 
   postsContainer.append(cardBorder);
   cardBorder.append(cardBody);
@@ -122,14 +111,6 @@ const renderPosts = (state, elements, i18n) => {
     const liPost = document.createElement('li');
     liPost.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start', 'border-0', 'border-end-0');
 
-    const anchorPost = document.createElement('a');
-    anchorPost.classList.add('fw-bold');
-
-    anchorPost.setAttribute('href', `${post.link}`);
-    anchorPost.setAttribute('target', '_blank');
-    anchorPost.setAttribute('rel', 'noopener noreferrer');
-    anchorPost.textContent = post.title;
-
     const buttonPost = document.createElement('button');
     buttonPost.classList.add('btn', 'btn-outline-primary', 'btn-sm');
 
@@ -139,10 +120,18 @@ const renderPosts = (state, elements, i18n) => {
     buttonPost.setAttribute('data-bs-target', '#modal');
     buttonPost.textContent = i18n.t('interface.view');
 
+    const anchorPost = document.createElement('a');
     if (state.viewedPostsId.has(buttonPost.dataset.id)) {
-      anchorPost.classList.remove('fw-bold');
       anchorPost.classList.add('fw-normal', 'link-secondary');
+    } else {
+      anchorPost.classList.add('fw-bold');
     }
+
+    anchorPost.setAttribute('href', `${post.link}`);
+    anchorPost.setAttribute('data-id', `${post.id}`);
+    anchorPost.setAttribute('target', '_blank');
+    anchorPost.setAttribute('rel', 'noopener noreferrer');
+    anchorPost.textContent = post.title;
 
     liPost.append(anchorPost, buttonPost);
     ulPosts.append(liPost);
@@ -150,40 +139,31 @@ const renderPosts = (state, elements, i18n) => {
 };
 
 const renderModal = (state, elements) => {
-  const modalPost = state.posts.flat().filter((post) => post.id === state.modalPostId);
-  const [{ title, description, link }] = modalPost;
+  const isModalPostId = (element) => element.id === state.modalPostId;
+  const modalPost = state.posts.flat().find(isModalPostId);
+  const { title, description, link } = modalPost;
   elements.modal.title.textContent = title;
   elements.modal.body.textContent = description;
   elements.modal.button.setAttribute('href', `${link}`);
-};
-
-const renderViewedPosts = (state, elements) => {
-  const buttonPosts = elements.postsContainer.querySelectorAll('.btn.btn-outline-primary.btn-sm');
-  buttonPosts.forEach((button) => {
-    if (state.viewedPostsId.has(button.dataset.id)) {
-      button.previousSibling.classList.remove('fw-bold');
-      button.previousSibling.classList.add('fw-normal', 'link-secondary');
-    }
-  });
 };
 
 export default (elements, initState, i18n) => {
   const watchedState = onChange(initState, (path) => {
     switch (path) {
       case 'form':
-        handleFormError(initState, elements, i18n);
+        handleForm(initState, elements, i18n);
         break;
       case 'loadingProcess':
         handleloadingProcess(initState, elements, i18n);
         break;
       case 'feeds':
-        renderFeeds(initState, elements);
+        renderFeeds(initState, elements, i18n);
         break;
       case 'posts':
         renderPosts(initState, elements, i18n);
         break;
       case 'viewedPostsId':
-        renderViewedPosts(initState, elements);
+        renderPosts(initState, elements, i18n);
         break;
       case 'modalPostId':
         renderModal(initState, elements);

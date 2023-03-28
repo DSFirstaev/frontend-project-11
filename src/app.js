@@ -74,16 +74,6 @@ const updatePosts = (watchedState) => {
         });
 
       watchedState.posts = [...newPosts, ...watchedState.posts];
-      watchedState.loadingProcess = {
-        status: 'success',
-        error: '',
-      };
-    })
-    .catch((error) => {
-      watchedState.loadingProcess = {
-        status: 'fail',
-        error: getErrorCode(error),
-      };
     }));
 
   return Promise.all(promises)
@@ -159,14 +149,11 @@ const runApp = (i18n) => {
 
   elements.postsContainer.addEventListener('click', (event) => {
     const { target } = event;
-    let postId;
-    if (target.tagName === 'A') {
-      postId = target.nextSibling.getAttribute('data-id');
+    const postId = target.getAttribute('data-id');
+    if (!('id' in target.dataset)) {
+      return;
     }
-    if (target.tagName === 'BUTTON') {
-      postId = target.getAttribute('data-id');
-      watchedState.modalPostId = postId;
-    }
+    watchedState.modalPostId = postId;
     watchedState.viewedPostsId.add(postId);
   });
 };

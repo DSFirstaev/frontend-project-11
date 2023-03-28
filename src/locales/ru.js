@@ -11,6 +11,8 @@ export default {
     },
     interface: {
       view: 'Просмотр',
+      feeds: 'Фиды',
+      posts: 'Посты',
     },
   },
 };
