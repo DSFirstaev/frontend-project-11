@@ -62,7 +62,6 @@ const renderFeeds = (state, elements, i18n) => {
   const ulFeeds = document.createElement('ul');
   ulFeeds.classList.add('list-group', 'border-0', 'rounded-0');
   cardBorder.append(ulFeeds);
-  // ulFeeds.innerHTML = '';
 
   state.feeds.forEach((feed) => {
     const liFeed = document.createElement('li');
