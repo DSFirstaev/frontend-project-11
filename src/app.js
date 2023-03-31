@@ -30,13 +30,15 @@ const addProxy = (originUrl) => {
 };
 
 const fetchData = (url, watchedState) => {
+  const responseTime = 10000;
+
   watchedState.loadingProcess = {
     status: 'loading',
     error: '',
   };
 
   axios
-    .get(addProxy(url), { timeout: 10000 })
+    .get(addProxy(url), { timeout: responseTime })
     .then((response) => {
       const { feed, posts } = parser(response.data.contents);
       feed.url = url;
@@ -61,8 +63,11 @@ const fetchData = (url, watchedState) => {
 };
 
 const updatePosts = (watchedState) => {
+  const responseTime = 10000;
+  const updateInterval = 5000;
+
   const promises = watchedState.feeds.map(({ id, url }) => axios
-    .get(addProxy(url), { timeout: 10000 })
+    .get(addProxy(url), { timeout: responseTime })
     .then((response) => {
       const { posts } = parser(response.data.contents);
       const currentPosts = watchedState.posts.flat();
@@ -77,11 +82,11 @@ const updatePosts = (watchedState) => {
     }));
 
   return Promise.all(promises)
-    .finally(setTimeout(() => updatePosts(watchedState), 5000));
+    .finally(setTimeout(() => updatePosts(watchedState), updateInterval));
 };
 
-const validateUrl = (url, parsedUrl) => {
-  const schema = string().url().required().notOneOf(parsedUrl);
+const validateUrl = (url, parsedUrls) => {
+  const schema = string().url().required().notOneOf(parsedUrls);
   return schema.validate(url)
     .then(() => null)
     .catch((error) => error.message);
@@ -126,26 +131,29 @@ const runApp = (i18n) => {
     elements.input.focus();
     const formData = new FormData(event.target);
     const url = formData.get('url');
-    const parsedUrl = watchedState.feeds.map((feed) => feed.url);
-    validateUrl(url, parsedUrl)
+    const parsedUrls = watchedState.feeds.map((feed) => feed.url);
+    validateUrl(url, parsedUrls)
       .then((error) => {
         if (error) {
           watchedState.form = {
             status: 'invalid',
             error,
           };
-        } else {
-          watchedState.form = {
-            status: 'filling',
-            error: '',
-          };
-
-          fetchData(url, watchedState);
+          return;
         }
+
+        watchedState.form = {
+          status: 'filling',
+          error: '',
+        };
+
+        fetchData(url, watchedState);
       });
   });
 
-  setTimeout(() => updatePosts(watchedState), 5000);
+  const updateInterval = 5000;
+
+  setTimeout(() => updatePosts(watchedState), updateInterval);
 
   elements.postsContainer.addEventListener('click', (event) => {
     const { target } = event;
